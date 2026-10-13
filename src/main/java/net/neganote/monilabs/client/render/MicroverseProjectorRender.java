@@ -27,6 +27,7 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import org.jetbrains.annotations.NotNull;
+import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.joml.Vector4i;
 
@@ -150,39 +151,45 @@ public class MicroverseProjectorRender extends
     private void renderMicroverse(PoseStack stack, MultiBufferSource buffer, Direction upwards, Direction front,
                                   Direction left, int combinedLight, int tier, int baseColor, Vector4i colors,
                                   Vector4f particleSpeeds) {
+        Vector4f anchor = switch (tier) {
+            case 1 -> getAnchor(stack, upwards, front, -1, 1, 0.87f);
+            case 2 -> getAnchor(stack, upwards, front, -2, 2, 2.6f);
+            case 3 -> getAnchor(stack, upwards, front, -4, 2, 4.95f);
+            default -> getAnchor(stack, upwards, front, -5, 5, 5.36f);
+        };
         switch (tier) {
             case 1:
                 renderCuboid(stack, buffer, upwards, front, left, combinedLight, -1, 1,
-                        1.002f, 1.002f, 1.002f, baseColor, colors, particleSpeeds);
+                        1.002f, 1.002f, 1.002f, baseColor, colors, particleSpeeds, anchor);
                 break;
             case 2:
                 renderCuboid(stack, buffer, upwards, front, left, combinedLight, -2, 2,
-                        3.002f, 3.002f, 3.002f, baseColor, colors, particleSpeeds);
+                        3.002f, 3.002f, 3.002f, baseColor, colors, particleSpeeds, anchor);
                 break;
             case 3:
                 renderCuboid(stack, buffer, upwards, front, left, combinedLight, -4, 2,
-                        5.002f, 7.002f, 5.002f, baseColor, colors, particleSpeeds);
+                        5.002f, 7.002f, 5.002f, baseColor, colors, particleSpeeds, anchor);
                 renderCuboid(stack, buffer, upwards, front, left, combinedLight, -4, 2,
-                        7.002f, 5.002f, 5.002f, baseColor, colors, particleSpeeds);
+                        7.002f, 5.002f, 5.002f, baseColor, colors, particleSpeeds, anchor);
                 renderCuboid(stack, buffer, upwards, front, left, combinedLight, -4, 2,
-                        5.002f, 5.002f, 7.002f, baseColor, colors, particleSpeeds);
+                        5.002f, 5.002f, 7.002f, baseColor, colors, particleSpeeds, anchor);
                 break;
             case 4:
                 // Lower square
                 renderCuboid(stack, buffer, upwards, front, left, combinedLight, -5, 1,
-                        3.002f, 1.002f, 5.002f, baseColor, colors, particleSpeeds);
+                        3.002f, 1.002f, 5.002f, baseColor, colors, particleSpeeds, anchor);
                 renderCuboid(stack, buffer, upwards, front, left, combinedLight, -5, 1,
-                        5.002f, 1.002f, 3.002f, baseColor, colors, particleSpeeds);
+                        5.002f, 1.002f, 3.002f, baseColor, colors, particleSpeeds, anchor);
 
                 // Middle tube
                 renderCuboid(stack, buffer, upwards, front, left, combinedLight, -5, 5,
-                        1.002f, 7.002f, 1.002f, baseColor, colors, particleSpeeds);
+                        1.002f, 7.002f, 1.002f, baseColor, colors, particleSpeeds, anchor);
 
                 // Upper square
                 renderCuboid(stack, buffer, upwards, front, left, combinedLight, -5, 9,
-                        3.002f, 1.002f, 5.002f, baseColor, colors, particleSpeeds);
+                        3.002f, 1.002f, 5.002f, baseColor, colors, particleSpeeds, anchor);
                 renderCuboid(stack, buffer, upwards, front, left, combinedLight, -5, 9,
-                        5.002f, 1.002f, 3.002f, baseColor, colors, particleSpeeds);
+                        5.002f, 1.002f, 3.002f, baseColor, colors, particleSpeeds, anchor);
                 break;
         }
     }
@@ -190,7 +197,7 @@ public class MicroverseProjectorRender extends
     private void renderCuboid(PoseStack stack, MultiBufferSource buffer, Direction upwards, Direction front,
                               Direction left, int combinedLight, int offsetFront, int offsetUp,
                               float scaleFactorFB, float scaleFactorUD, float scaleFactorLR,
-                              int baseColor, Vector4i colors, Vector4f particleSpeeds) {
+                              int baseColor, Vector4i colors, Vector4f particleSpeeds, Vector4f anchor) {
         stack.pushPose();
         var upwardsNormal = upwards.getNormal();
         var frontNormal = front.getNormal();
@@ -257,10 +264,18 @@ public class MicroverseProjectorRender extends
         });
 
         RenderBufferHelper.renderCube(consumer, pose, baseColor, colors,
-                particleSpeeds,
+                particleSpeeds, anchor,
                 combinedLight, UnitTextureAtlasSprite.INSTANCE,
                 minX, minY, minZ, maxX, maxY, maxZ);
         stack.popPose();
+    }
+
+    private Vector4f getAnchor(PoseStack stack, Direction upwards, Direction front, int offsetFront, int offsetUp,
+                               float radius) {
+        Vec3i movement = upwards.getNormal().multiply(offsetUp).offset(front.getNormal().multiply(offsetFront));
+        Vector3f center = stack.last().pose().transformPosition(new Vector3f(
+                movement.getX() + 0.5f, movement.getY() + 0.5f, movement.getZ() + 0.5f));
+        return new Vector4f(center, radius);
     }
 
     @Override

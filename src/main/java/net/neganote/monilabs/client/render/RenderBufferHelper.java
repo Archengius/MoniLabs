@@ -23,36 +23,43 @@ import org.joml.Vector4i;
 public class RenderBufferHelper {
 
     public static void renderCube(VertexConsumer buffer, PoseStack.Pose pose,
-                                  int baseColor, Vector4i color, Vector4f speeds, int combinedLight,
-                                  TextureAtlasSprite sprite,
+                                  int baseColor, Vector4i color, Vector4f speeds, Vector4f anchor,
+                                  int combinedLight, TextureAtlasSprite sprite,
                                   float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
         float uMin = sprite.getU0();
         float uMax = sprite.getU1();
         float vMin = sprite.getV0();
         float vMax = sprite.getV1();
 
-        renderCubeFace(buffer, pose, baseColor, color, speeds, combinedLight, Direction.UP, minX, maxY, minZ, uMin,
+        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, combinedLight, Direction.UP, minX, maxY, minZ,
+                uMin,
                 vMax, minX, maxY, maxZ, uMax, vMax, maxX, maxY, maxZ, uMax, vMin, maxX, maxY, minZ, uMin, vMin);
 
-        renderCubeFace(buffer, pose, baseColor, color, speeds, combinedLight, Direction.DOWN, minX, minY, minZ, uMin,
+        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, combinedLight, Direction.DOWN, minX, minY, minZ,
+                uMin,
                 vMax, maxX, minY, minZ, uMax, vMax, maxX, minY, maxZ, uMax, vMin, minX, minY, maxZ, uMin, vMin);
 
-        renderCubeFace(buffer, pose, baseColor, color, speeds, combinedLight, Direction.NORTH, minX, minY, minZ, uMin,
+        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, combinedLight, Direction.NORTH, minX, minY, minZ,
+                uMin,
                 vMax, minX, maxY, minZ, uMax, vMax, maxX, maxY, minZ, uMax, vMin, maxX, minY, minZ, uMin, vMin);
 
-        renderCubeFace(buffer, pose, baseColor, color, speeds, combinedLight, Direction.SOUTH, minX, minY, maxZ, uMin,
+        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, combinedLight, Direction.SOUTH, minX, minY, maxZ,
+                uMin,
                 vMax, maxX, minY, maxZ, uMax, vMax, maxX, maxY, maxZ, uMax, vMin, minX, maxY, maxZ, uMin, vMin);
 
-        renderCubeFace(buffer, pose, baseColor, color, speeds, combinedLight, Direction.WEST, minX, minY, minZ, uMin,
+        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, combinedLight, Direction.WEST, minX, minY, minZ,
+                uMin,
                 vMax, minX, minY, maxZ, uMax, vMax, minX, maxY, maxZ, uMax, vMin, minX, maxY, minZ, uMin, vMin);
 
-        renderCubeFace(buffer, pose, baseColor, color, speeds, combinedLight, Direction.EAST, maxX, minY, minZ, uMin,
+        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, combinedLight, Direction.EAST, maxX, minY, minZ,
+                uMin,
                 vMax, maxX, maxY, minZ, uMax, vMax, maxX, maxY, maxZ, uMax, vMin, maxX, minY, maxZ, uMin, vMin);
     }
 
     public static void renderCubeFace(VertexConsumer buffer, PoseStack.Pose pose,
                                       int baseColor,
-                                      Vector4i color, Vector4f speeds, int combinedLight, Direction normalDir,
+                                      Vector4i color, Vector4f speeds, Vector4f anchor, int combinedLight,
+                                      Direction normalDir,
                                       float x1, float y1, float z1,
                                       float u1, float v1,
                                       float x2, float y2, float z2,
@@ -63,15 +70,15 @@ public class RenderBufferHelper {
                                       float u4, float v4) {
         Vector3fc normal = GTMatrixUtils.getDirectionAxis(normalDir);
 
-        vertex(buffer, pose, x1, y1, z1, baseColor, u1, v1, normal, color, speeds);
-        vertex(buffer, pose, x2, y2, z2, baseColor, u2, v2, normal, color, speeds);
-        vertex(buffer, pose, x3, y3, z3, baseColor, u3, v3, normal, color, speeds);
-        vertex(buffer, pose, x4, y4, z4, baseColor, u4, v4, normal, color, speeds);
+        vertex(buffer, pose, x1, y1, z1, baseColor, u1, v1, normal, color, speeds, anchor);
+        vertex(buffer, pose, x2, y2, z2, baseColor, u2, v2, normal, color, speeds, anchor);
+        vertex(buffer, pose, x3, y3, z3, baseColor, u3, v3, normal, color, speeds, anchor);
+        vertex(buffer, pose, x4, y4, z4, baseColor, u4, v4, normal, color, speeds, anchor);
     }
 
     public static void vertex(VertexConsumer buffer, PoseStack.Pose pose,
                               float x, float y, float z, int baseColor, float texU, float texV, Vector3fc normal,
-                              Vector4i layerColors, Vector4f speeds) {
+                              Vector4i layerColors, Vector4f speeds, Vector4f anchor) {
         BufferVertexConsumer consumer = (BufferVertexConsumer) buffer;
         buffer.vertex(pose.pose(), x, y, z);
         buffer.color(baseColor | 0xFF000000);
@@ -117,6 +124,12 @@ public class RenderBufferHelper {
 
             consumer.putByte(offset + 3, (byte) 0xFF);// Alpha
         }
+        consumer.nextElement();
+
+        consumer.putFloat(0, anchor.x);
+        consumer.putFloat(4, anchor.y);
+        consumer.putFloat(8, anchor.z);
+        consumer.putFloat(12, anchor.w);
         consumer.nextElement();
         buffer.endVertex();
     }

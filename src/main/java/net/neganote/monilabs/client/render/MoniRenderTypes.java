@@ -27,6 +27,8 @@ public class MoniRenderTypes {
                             new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.UV, 4))
                     .put("Colors",
                             new VertexFormatElement(0, VertexFormatElement.Type.UINT, VertexFormatElement.Usage.UV, 4))
+                    .put("Anchor",
+                            new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.UV, 4))
                     .build());
 
     public static VertexFormat POSITION_VEC4_COLOR_PACKEDVEC4UINTS_IRIS = new VertexFormat(
@@ -52,6 +54,8 @@ public class MoniRenderTypes {
                             new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.UV, 4))
                     .put("Colors",
                             new VertexFormatElement(0, VertexFormatElement.Type.UINT, VertexFormatElement.Usage.UV, 4))
+                    .put("Anchor",
+                            new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.UV, 4))
                     .build());
 
     public static RenderType END_PORTAL_COLORED = RenderType.create("end_portal_colored",

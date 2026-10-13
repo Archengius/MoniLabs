@@ -22,6 +22,8 @@ public class IrisVertexFormatsMixin {
                 new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.PADDING, 4));
         builder.put("Colors",
                 new VertexFormatElement(0, VertexFormatElement.Type.UINT, VertexFormatElement.Usage.PADDING, 4));
+        builder.put("Anchor",
+                new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.PADDING, 4));
         return builder;
     }
 }
