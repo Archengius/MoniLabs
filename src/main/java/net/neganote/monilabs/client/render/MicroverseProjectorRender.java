@@ -1,32 +1,23 @@
 package net.neganote.monilabs.client.render;
 
-import com.gregtechceu.gtceu.GTCEu;
-import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.pattern.util.RelativeDirection;
 import com.gregtechceu.gtceu.client.renderer.machine.DynamicRender;
 import com.gregtechceu.gtceu.client.renderer.machine.DynamicRenderType;
 
-import net.irisshaders.iris.Iris;
-import net.irisshaders.iris.shaderpack.materialmap.WorldRenderingSettings;
-import net.irisshaders.iris.uniforms.CapturedRenderingState;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.client.textures.UnitTextureAtlasSprite;
 import net.neganote.monilabs.common.machine.multiblock.Microverse;
 import net.neganote.monilabs.common.machine.multiblock.MicroverseProjectorMachine;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.serialization.Codec;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import org.jetbrains.annotations.NotNull;
+import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.joml.Vector4i;
 
@@ -99,7 +90,7 @@ public class MicroverseProjectorRender extends
             case CORRUPTED /* DEGENERATE */ -> 0x150A14;
             default -> 0x06191C;
         };
-        renderMicroverse(stack, buffer, upwards, front, left, combinedLight, tier, baseColor, colors, particleSpeeds);
+        renderProjectInterior(stack, buffer, upwards, front, left, combinedLight, tier, baseColor, colors, particleSpeeds);
     }
 
     private Vector4f getSuperchargedSpeeds(float multiplier) {
@@ -147,120 +138,57 @@ public class MicroverseProjectorRender extends
                 currentDegenerateColors[3]);
     }
 
-    private void renderMicroverse(PoseStack stack, MultiBufferSource buffer, Direction upwards, Direction front,
-                                  Direction left, int combinedLight, int tier, int baseColor, Vector4i colors,
-                                  Vector4f particleSpeeds) {
-        switch (tier) {
-            case 1:
-                renderCuboid(stack, buffer, upwards, front, left, combinedLight, -1, 1,
-                        1.002f, 1.002f, 1.002f, baseColor, colors, particleSpeeds);
-                break;
-            case 2:
-                renderCuboid(stack, buffer, upwards, front, left, combinedLight, -2, 2,
-                        3.002f, 3.002f, 3.002f, baseColor, colors, particleSpeeds);
-                break;
-            case 3:
-                renderCuboid(stack, buffer, upwards, front, left, combinedLight, -4, 2,
-                        5.002f, 7.002f, 5.002f, baseColor, colors, particleSpeeds);
-                renderCuboid(stack, buffer, upwards, front, left, combinedLight, -4, 2,
-                        7.002f, 5.002f, 5.002f, baseColor, colors, particleSpeeds);
-                renderCuboid(stack, buffer, upwards, front, left, combinedLight, -4, 2,
-                        5.002f, 5.002f, 7.002f, baseColor, colors, particleSpeeds);
-                break;
-            case 4:
-                // Lower square
-                renderCuboid(stack, buffer, upwards, front, left, combinedLight, -5, 1,
-                        3.002f, 1.002f, 5.002f, baseColor, colors, particleSpeeds);
-                renderCuboid(stack, buffer, upwards, front, left, combinedLight, -5, 1,
-                        5.002f, 1.002f, 3.002f, baseColor, colors, particleSpeeds);
-
-                // Middle tube
-                renderCuboid(stack, buffer, upwards, front, left, combinedLight, -5, 5,
-                        1.002f, 7.002f, 1.002f, baseColor, colors, particleSpeeds);
-
-                // Upper square
-                renderCuboid(stack, buffer, upwards, front, left, combinedLight, -5, 9,
-                        3.002f, 1.002f, 5.002f, baseColor, colors, particleSpeeds);
-                renderCuboid(stack, buffer, upwards, front, left, combinedLight, -5, 9,
-                        5.002f, 1.002f, 3.002f, baseColor, colors, particleSpeeds);
-                break;
-        }
+    private Vector4f getAnchor(PoseStack stack, Direction upwards, Direction front, int offsetFront, int offsetUp,
+                               float shellRadius) {
+        Vec3i movement = upwards.getNormal().multiply(offsetUp).offset(front.getNormal().multiply(offsetFront));
+        Vector3f center = stack.last().pose().transformPosition(movement.getX() + 0.5f, movement.getY() + 0.5f,
+                movement.getZ() + 0.5f, new Vector3f());
+        return new Vector4f(center, shellRadius);
     }
 
-    private void renderCuboid(PoseStack stack, MultiBufferSource buffer, Direction upwards, Direction front,
-                              Direction left, int combinedLight, int offsetFront, int offsetUp,
-                              float scaleFactorFB, float scaleFactorUD, float scaleFactorLR,
-                              int baseColor, Vector4i colors, Vector4f particleSpeeds) {
-        stack.pushPose();
-        var upwardsNormal = upwards.getNormal();
-        var frontNormal = front.getNormal();
-        var leftNormal = left.getNormal();
+    private void renderProjectInterior(PoseStack stack, MultiBufferSource buffer, Direction upwards, Direction front,
+                                       Direction left, int combinedLight, int tier, int baseColor, Vector4i colors,
+                                       Vector4f particleSpeeds) {
+        Vector4f anchor;
+        switch (tier) {
+            case 1:
+                anchor = getAnchor(stack, upwards, front, -1, 1, 0.9f);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -1, 1,
+                        1.002f, 1.002f, 1.002f, baseColor, colors, particleSpeeds, anchor);
+                break;
+            case 2:
+                anchor = getAnchor(stack, upwards, front, -2, 2, 2.6f);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -2, 2,
+                        3.002f, 3.002f, 3.002f, baseColor, colors, particleSpeeds, anchor);
+                break;
+            case 3:
+                anchor = getAnchor(stack, upwards, front, -4, 2, 5.0f);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -4, 2,
+                        5.002f, 7.002f, 5.002f, baseColor, colors, particleSpeeds, anchor);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -4, 2,
+                        7.002f, 5.002f, 5.002f, baseColor, colors, particleSpeeds, anchor);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -4, 2,
+                        5.002f, 5.002f, 7.002f, baseColor, colors, particleSpeeds, anchor);
+                break;
+            case 4:
+                anchor = getAnchor(stack, upwards, front, -5, 5, 5.4f);
+                // Lower square
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -5, 1,
+                        3.002f, 1.002f, 5.002f, baseColor, colors, particleSpeeds, anchor);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -5, 1,
+                        5.002f, 1.002f, 3.002f, baseColor, colors, particleSpeeds, anchor);
 
-        // Calculate offset
-        Vec3i movement = upwardsNormal.multiply(offsetUp);
-        movement = movement.offset(frontNormal.multiply(offsetFront));
+                // Middle tube
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -5, 5,
+                        1.002f, 7.002f, 1.002f, baseColor, colors, particleSpeeds, anchor);
 
-        // Calculate scaling factors
-        float scaleFactorX = 0.0f;
-        float scaleFactorY = 0.0f;
-        float scaleFactorZ = 0.0f;
-
-        if (leftNormal.getX() != 0) {
-            scaleFactorX = scaleFactorLR;
-        } else if (leftNormal.getY() != 0) {
-            // noinspection
-            scaleFactorY = scaleFactorLR;
-        } else if (leftNormal.getZ() != 0) {
-            scaleFactorZ = scaleFactorLR;
+                // Upper square
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -5, 9,
+                        3.002f, 1.002f, 5.002f, baseColor, colors, particleSpeeds, anchor);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -5, 9,
+                        5.002f, 1.002f, 3.002f, baseColor, colors, particleSpeeds, anchor);
+                break;
         }
-
-        if (frontNormal.getX() != 0) {
-            scaleFactorX = scaleFactorFB;
-        } else if (frontNormal.getY() != 0) {
-            scaleFactorY = scaleFactorFB;
-        } else if (frontNormal.getZ() != 0) {
-            scaleFactorZ = scaleFactorFB;
-        }
-
-        if (upwardsNormal.getX() != 0) {
-            scaleFactorX = scaleFactorUD;
-        } else if (upwardsNormal.getY() != 0) {
-            scaleFactorY = scaleFactorUD;
-        } else if (upwardsNormal.getZ() != 0) {
-            scaleFactorZ = scaleFactorUD;
-        }
-
-        float minX = movement.getX() + 0.5f - (scaleFactorX / 2.0f);
-        float minY = movement.getY() + 0.5f - (scaleFactorY / 2.0f);
-        float minZ = movement.getZ() + 0.5f - (scaleFactorZ / 2.0f);
-
-        float maxX = movement.getX() + 0.5f + (scaleFactorX / 2.0f);
-        float maxY = movement.getY() + 0.5f + (scaleFactorY / 2.0f);
-        float maxZ = movement.getZ() + 0.5f + (scaleFactorZ / 2.0f);
-
-        PoseStack.Pose pose = stack.last();
-
-        // Send buffer data, clean up
-        VertexConsumer consumer;
-        if (GTCEu.isModLoaded(GTValues.MODID_OCULUS) && Iris.getCurrentPack().isPresent()) {
-            consumer = buffer.getBuffer(MoniRenderTypes.END_PORTAL_COLORED_IRIS);
-        } else {
-            consumer = buffer.getBuffer(MoniRenderTypes.END_PORTAL_COLORED);
-        }
-        Iris.getCurrentPack().ifPresent(pack -> {
-            Object2IntMap<BlockState> stateIds = WorldRenderingSettings.INSTANCE.getBlockStateIds();
-            if (stateIds != null) {
-                CapturedRenderingState.INSTANCE
-                        .setCurrentBlockEntity(stateIds.getOrDefault(Blocks.END_PORTAL.defaultBlockState(), -1));
-                CapturedRenderingState.INSTANCE.setCurrentEntity(6767); // Should be unclaimed hopefully :)
-            }
-        });
-
-        RenderBufferHelper.renderCube(consumer, pose, baseColor, colors,
-                particleSpeeds,
-                combinedLight, UnitTextureAtlasSprite.INSTANCE,
-                minX, minY, minZ, maxX, maxY, maxZ);
-        stack.popPose();
     }
 
     @Override
