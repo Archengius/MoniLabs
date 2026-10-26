@@ -34,10 +34,13 @@ public class MicroverseRenderHelper {
     public static final ResourceLocation COSMIC_WEB_LOCATION = ResourceLocation.fromNamespaceAndPath(
             MoniLabs.MOD_ID, "textures/renderer/cosmic_web.png");
 
+    public static final int RENDER_EFFECT_ID_NONE = 0;
+    public static final int RENDER_EFFECT_ID_CORRUPTED = 1;
+
     public static void renderMicroverse(PoseStack stack, MultiBufferSource buffer, Direction upwards, Direction front,
-                                        Direction left, int combinedLight, int offsetFront, int offsetUp,
+                                        Direction left, int offsetFront, int offsetUp,
                                         float scaleFactorFB, float scaleFactorUD, float scaleFactorLR,
-                                        int baseColor, Vector4i colors, Vector4f particleSpeeds, Vector4f anchor) {
+                                        int baseColor, Vector4i colors, Vector4f particleSpeeds, Vector4f anchor, float integrity, int renderEffectId) {
         stack.pushPose();
         var upwardsNormal = upwards.getNormal();
         var frontNormal = front.getNormal();
@@ -104,15 +107,15 @@ public class MicroverseRenderHelper {
         });
 
         renderCube(consumer, pose, baseColor, colors,
-                particleSpeeds, anchor,
-                combinedLight, UnitTextureAtlasSprite.INSTANCE,
+                particleSpeeds, anchor, integrity, renderEffectId,
+                UnitTextureAtlasSprite.INSTANCE,
                 minX, minY, minZ, maxX, maxY, maxZ);
         stack.popPose();
     }
 
     private static void renderCube(VertexConsumer buffer, PoseStack.Pose pose,
                                   int baseColor, Vector4i color, Vector4f speeds, 
-                                  Vector4f anchor, int combinedLight,
+                                  Vector4f anchor, float integrity, int renderEffectId,
                                   TextureAtlasSprite sprite,
                                   float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
         float uMin = sprite.getU0();
@@ -120,29 +123,29 @@ public class MicroverseRenderHelper {
         float vMin = sprite.getV0();
         float vMax = sprite.getV1();
 
-        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, combinedLight, Direction.UP, minX, maxY, minZ, uMin,
+        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, integrity, renderEffectId, Direction.UP, minX, maxY, minZ, uMin,
                 vMax, minX, maxY, maxZ, uMax, vMax, maxX, maxY, maxZ, uMax, vMin, maxX, maxY, minZ, uMin, vMin);
 
-        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, combinedLight, Direction.DOWN, minX, minY, minZ, uMin,
+        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, integrity, renderEffectId, Direction.DOWN, minX, minY, minZ, uMin,
                 vMax, maxX, minY, minZ, uMax, vMax, maxX, minY, maxZ, uMax, vMin, minX, minY, maxZ, uMin, vMin);
 
-        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, combinedLight, Direction.NORTH, minX, minY, minZ, uMin,
+        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, integrity, renderEffectId, Direction.NORTH, minX, minY, minZ, uMin,
                 vMax, minX, maxY, minZ, uMax, vMax, maxX, maxY, minZ, uMax, vMin, maxX, minY, minZ, uMin, vMin);
 
-        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, combinedLight, Direction.SOUTH, minX, minY, maxZ, uMin,
+        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, integrity, renderEffectId, Direction.SOUTH, minX, minY, maxZ, uMin,
                 vMax, maxX, minY, maxZ, uMax, vMax, maxX, maxY, maxZ, uMax, vMin, minX, maxY, maxZ, uMin, vMin);
 
-        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, combinedLight, Direction.WEST, minX, minY, minZ, uMin,
+        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, integrity, renderEffectId, Direction.WEST, minX, minY, minZ, uMin,
                 vMax, minX, minY, maxZ, uMax, vMax, minX, maxY, maxZ, uMax, vMin, minX, maxY, minZ, uMin, vMin);
 
-        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, combinedLight, Direction.EAST, maxX, minY, minZ, uMin,
+        renderCubeFace(buffer, pose, baseColor, color, speeds, anchor, integrity, renderEffectId, Direction.EAST, maxX, minY, minZ, uMin,
                 vMax, maxX, maxY, minZ, uMax, vMax, maxX, maxY, maxZ, uMax, vMin, maxX, minY, maxZ, uMin, vMin);
     }
 
     private static void renderCubeFace(VertexConsumer buffer, PoseStack.Pose pose,
                                       int baseColor,
-                                      Vector4i color, Vector4f speeds, Vector4f anchor,
-                                      int combinedLight, Direction normalDir,
+                                      Vector4i color, Vector4f speeds, Vector4f anchor, float integrity, int renderEffectId,
+                                      Direction normalDir,
                                       float x1, float y1, float z1,
                                       float u1, float v1,
                                       float x2, float y2, float z2,
@@ -153,15 +156,15 @@ public class MicroverseRenderHelper {
                                       float u4, float v4) {
         Vector3fc normal = GTMatrixUtils.getDirectionAxis(normalDir);
 
-        vertex(buffer, pose, x1, y1, z1, baseColor, u1, v1, normal, color, speeds, anchor);
-        vertex(buffer, pose, x2, y2, z2, baseColor, u2, v2, normal, color, speeds, anchor);
-        vertex(buffer, pose, x3, y3, z3, baseColor, u3, v3, normal, color, speeds, anchor);
-        vertex(buffer, pose, x4, y4, z4, baseColor, u4, v4, normal, color, speeds, anchor);
+        vertex(buffer, pose, x1, y1, z1, baseColor, u1, v1, normal, color, speeds, anchor, integrity, renderEffectId);
+        vertex(buffer, pose, x2, y2, z2, baseColor, u2, v2, normal, color, speeds, anchor, integrity, renderEffectId);
+        vertex(buffer, pose, x3, y3, z3, baseColor, u3, v3, normal, color, speeds, anchor, integrity, renderEffectId);
+        vertex(buffer, pose, x4, y4, z4, baseColor, u4, v4, normal, color, speeds, anchor, integrity, renderEffectId);
     }
 
     private static void vertex(VertexConsumer buffer, PoseStack.Pose pose,
                               float x, float y, float z, int baseColor, float texU, float texV, Vector3fc normal,
-                              Vector4i layerColors, Vector4f speeds, Vector4f anchor) {
+                              Vector4i layerColors, Vector4f speeds, Vector4f anchor, float integrity, int renderEffectId) {
         BufferVertexConsumer consumer = (BufferVertexConsumer) buffer;
         buffer.vertex(pose.pose(), x, y, z);
         buffer.color(baseColor | 0xFF000000);
@@ -214,7 +217,13 @@ public class MicroverseRenderHelper {
         consumer.putFloat(8, anchor.z);
         consumer.putFloat(12, anchor.w);
         consumer.nextElement();
-        
+
+        consumer.putFloat(0, integrity);
+        consumer.nextElement();
+
+        consumer.putByte(0, (byte) (renderEffectId & 0xFF));
+        consumer.nextElement();
+
         buffer.endVertex();
     }
 }

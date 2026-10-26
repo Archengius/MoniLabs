@@ -29,12 +29,6 @@ public class MicroverseProjectorRender extends
                                        DynamicRender<MicroverseProjectorMachine, MicroverseProjectorRender> {
 
     private long lastDegenerateColorSwapTime = 0;
-    private long lastSpeedSwapTime1 = 0;
-    private long corruptedSpeedSwapEndTimestamp1 = 0;
-    private long lastSpeedSwapTime2 = 0;
-    private long corruptedSpeedSwapEndTimestamp2 = 0;
-
-    private float corruptedSpeedModifier = 1.0f;
 
     private static final Random RANDOM = new Random();
     private static final int[] originalDegenerateColors = { 0x55FFFF, 0x7C00BD, 0xD10000, 0x000000 };
@@ -80,7 +74,7 @@ public class MicroverseProjectorRender extends
             case NORMAL -> new Vector4f(1.0f, 1.0f, 1.0f, 1.0f);
             case HOSTILE -> new Vector4f(3.0f, 0.5f, 1.5f, 1.0f);
             case SHATTERED -> new Vector4f(0.5f, 0.5f, 0.5f, 0.5f);
-            case CORRUPTED -> getCorruptedSpeeds(new Vector4f(2.0f, 0.5f, 1.0f, 4.0f), partialTicks);
+            case CORRUPTED -> new Vector4f(2.0f, 0.5f, 1.0f, 4.0f);
             // case ABYSSAL -> new Vector4f(1.5f, 0.25f, 0.75f, 0.5f);
             // case NECROSED -> new Vector4f(0.02f, 0.02f, 0.02f, 0.02f);
             // case SUPERCHARGED -> getSuperchargedSpeeds(1);
@@ -90,35 +84,16 @@ public class MicroverseProjectorRender extends
             case CORRUPTED /* DEGENERATE */ -> 0x150A14;
             default -> 0x06191C;
         };
-        renderProjectInterior(stack, buffer, upwards, front, left, combinedLight, tier, baseColor, colors, particleSpeeds);
+        int renderEffectId = switch(microverse) {
+            case NONE, SHATTERED, HOSTILE, NORMAL -> MicroverseRenderHelper.RENDER_EFFECT_ID_NONE;
+            case CORRUPTED -> MicroverseRenderHelper.RENDER_EFFECT_ID_CORRUPTED;
+        };
+        float integrity = projector.getMicroverseIntegrity() / (float) MicroverseProjectorMachine.MICROVERSE_MAX_INTEGRITY;
+        renderProjectInterior(stack, buffer, upwards, front, left, tier, baseColor, colors, particleSpeeds, integrity, renderEffectId);
     }
 
     private Vector4f getSuperchargedSpeeds(float multiplier) {
         return new Vector4f(5f * multiplier, 4f * multiplier, 3f * multiplier, 2f * multiplier);
-    }
-
-    private Vector4f getCorruptedSpeeds(Vector4f orig, float frameTime) {
-        long timeStamp = System.currentTimeMillis();
-        if (timeStamp - lastSpeedSwapTime1 > RANDOM.nextLong(2500, 2900)) {
-            lastSpeedSwapTime1 = timeStamp;
-            corruptedSpeedSwapEndTimestamp1 = timeStamp + 150;
-            corruptedSpeedModifier = 1;
-        }
-        if (timeStamp - lastSpeedSwapTime2 > RANDOM.nextLong(3700, 6000)) {
-            lastSpeedSwapTime2 = timeStamp;
-            corruptedSpeedSwapEndTimestamp2 = timeStamp + 250;
-            corruptedSpeedModifier = 1;
-        }
-        if ((corruptedSpeedSwapEndTimestamp1 > timeStamp || corruptedSpeedSwapEndTimestamp1 == 0) ||
-                corruptedSpeedSwapEndTimestamp2 > timeStamp || corruptedSpeedSwapEndTimestamp2 == 0) {
-            corruptedSpeedModifier -= 0.003f * frameTime;
-            orig.x *= corruptedSpeedModifier;
-            orig.y *= corruptedSpeedModifier;
-            orig.z *= corruptedSpeedModifier;
-            orig.w *= corruptedSpeedModifier;
-        }
-
-        return orig;
     }
 
     private Vector4i getDegenerateColors() {
@@ -147,46 +122,46 @@ public class MicroverseProjectorRender extends
     }
 
     private void renderProjectInterior(PoseStack stack, MultiBufferSource buffer, Direction upwards, Direction front,
-                                       Direction left, int combinedLight, int tier, int baseColor, Vector4i colors,
-                                       Vector4f particleSpeeds) {
+                                       Direction left, int tier, int baseColor, Vector4i colors,
+                                       Vector4f particleSpeeds, float integrity, int renderEffectId) {
         Vector4f anchor;
         switch (tier) {
             case 1:
                 anchor = getAnchor(stack, upwards, front, -1, 1, 0.9f);
-                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -1, 1,
-                        1.002f, 1.002f, 1.002f, baseColor, colors, particleSpeeds, anchor);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, -1, 1,
+                        1.002f, 1.002f, 1.002f, baseColor, colors, particleSpeeds, anchor, integrity, renderEffectId);
                 break;
             case 2:
                 anchor = getAnchor(stack, upwards, front, -2, 2, 2.6f);
-                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -2, 2,
-                        3.002f, 3.002f, 3.002f, baseColor, colors, particleSpeeds, anchor);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, -2, 2,
+                        3.002f, 3.002f, 3.002f, baseColor, colors, particleSpeeds, anchor, integrity, renderEffectId);
                 break;
             case 3:
                 anchor = getAnchor(stack, upwards, front, -4, 2, 5.0f);
-                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -4, 2,
-                        5.002f, 7.002f, 5.002f, baseColor, colors, particleSpeeds, anchor);
-                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -4, 2,
-                        7.002f, 5.002f, 5.002f, baseColor, colors, particleSpeeds, anchor);
-                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -4, 2,
-                        5.002f, 5.002f, 7.002f, baseColor, colors, particleSpeeds, anchor);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, -4, 2,
+                        5.002f, 7.002f, 5.002f, baseColor, colors, particleSpeeds, anchor, integrity, renderEffectId);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, -4, 2,
+                        7.002f, 5.002f, 5.002f, baseColor, colors, particleSpeeds, anchor, integrity, renderEffectId);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, -4, 2,
+                        5.002f, 5.002f, 7.002f, baseColor, colors, particleSpeeds, anchor, integrity, renderEffectId);
                 break;
             case 4:
                 anchor = getAnchor(stack, upwards, front, -5, 5, 5.4f);
                 // Lower square
-                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -5, 1,
-                        3.002f, 1.002f, 5.002f, baseColor, colors, particleSpeeds, anchor);
-                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -5, 1,
-                        5.002f, 1.002f, 3.002f, baseColor, colors, particleSpeeds, anchor);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, -5, 1,
+                        3.002f, 1.002f, 5.002f, baseColor, colors, particleSpeeds, anchor, integrity, renderEffectId);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, -5, 1,
+                        5.002f, 1.002f, 3.002f, baseColor, colors, particleSpeeds, anchor, integrity, renderEffectId);
 
                 // Middle tube
-                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -5, 5,
-                        1.002f, 7.002f, 1.002f, baseColor, colors, particleSpeeds, anchor);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, -5, 5,
+                        1.002f, 7.002f, 1.002f, baseColor, colors, particleSpeeds, anchor, integrity, renderEffectId);
 
                 // Upper square
-                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -5, 9,
-                        3.002f, 1.002f, 5.002f, baseColor, colors, particleSpeeds, anchor);
-                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, combinedLight, -5, 9,
-                        5.002f, 1.002f, 3.002f, baseColor, colors, particleSpeeds, anchor);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, -5, 9,
+                        3.002f, 1.002f, 5.002f, baseColor, colors, particleSpeeds, anchor, integrity, renderEffectId);
+                MicroverseRenderHelper.renderMicroverse(stack, buffer, upwards, front, left, -5, 9,
+                        5.002f, 1.002f, 3.002f, baseColor, colors, particleSpeeds, anchor, integrity, renderEffectId);
                 break;
         }
     }

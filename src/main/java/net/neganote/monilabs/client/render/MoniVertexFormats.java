@@ -20,6 +20,10 @@ public class MoniVertexFormats {
                             new VertexFormatElement(0, VertexFormatElement.Type.UINT, VertexFormatElement.Usage.UV, 4))
                     .put("Anchor",
                             new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.UV, 4))
+                    .put("Integrity",
+                            new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.UV, 1))
+                    .put("RenderEffectId",
+                            new VertexFormatElement(0, VertexFormatElement.Type.UBYTE, VertexFormatElement.Usage.GENERIC, 1))
                     .build());
 
     public static VertexFormat MICROVERSE_IRIS = new VertexFormat(
@@ -47,5 +51,9 @@ public class MoniVertexFormats {
                             new VertexFormatElement(0, VertexFormatElement.Type.UINT, VertexFormatElement.Usage.UV, 4))
                     .put("Anchor",
                             new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.UV, 4))
+                    .put("Integrity",
+                            new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.UV, 1))
+                    .put("RenderEffectId",
+                            new VertexFormatElement(0, VertexFormatElement.Type.UBYTE, VertexFormatElement.Usage.GENERIC, 1))
                     .build());
 }

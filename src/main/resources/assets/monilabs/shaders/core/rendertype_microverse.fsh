@@ -12,9 +12,12 @@ flat in vec3 vBaseColor;
 flat in vec4 vParticleSpeeds;
 flat in uvec4 vColors;
 flat in vec4 vAnchor;
+flat in float vIntegrity;
+flat in uint vRenderEffectId;
 
 const int WEB_SHELLS = 3;
 const float TWO_PI = 6.28318530718;
+const int RENDER_EFFECT_ID_CORRUPTED = 1;
 
 vec3 rgb2hsv(vec3 c) {
     vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -31,7 +34,14 @@ vec3 hsv2rgb(vec3 c) {
     return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
 }
 
-vec3 sample_cosmic_web(vec3 viewRay, float webScale, float filamentWidth, float clusterSize) {
+// PCG hash - Jarzynski & Olano, "Hash Functions for GPU Rendering", JCGT 2020
+uint pcg_hash(uint v)  {
+    uint state = v * 747796405u + 2891336453u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+vec4 sample_cosmic_web(vec3 viewRay, float webScale, float filamentWidth, float clusterSize) {
     vec3 sample1 = texture(Sampler2, vec2(3.1574, 4.8511) + viewRay.yz * webScale).rgb;
     vec3 sample2 = texture(Sampler2, vec2(7.9221, 6.3466) + viewRay.xz * webScale).rgb;
     vec3 sample3 = texture(Sampler2, vec2(1.3213, 9.7544) + viewRay.xy * webScale).rgb;
@@ -51,8 +61,9 @@ vec3 sample_cosmic_web(vec3 viewRay, float webScale, float filamentWidth, float 
     float filamentMask = filamentMask1 * weight.x + filamentMask2 * weight.y + filamentMask3 * weight.z;
     float clusterMask = clusterMask1 * weight.x + clusterMask2 * weight.y + clusterMask3 * weight.z;
     float shimmerMask = sample1.b * weight.x + sample2.b * weight.y + sample3.b * weight.z;
+    float edgeDistance = sample1.r * weight.x + sample2.r * weight.y + sample3.r * weight.z;
 
-    return vec3(filamentMask, clusterMask, shimmerMask);
+    return vec4(filamentMask, clusterMask, shimmerMask, edgeDistance);
 }
 
 vec3 triplanar_blend(sampler2D textureSampler, vec3 viewRay, float biasScale, float textureScale) {
@@ -96,17 +107,27 @@ float calc_shimmer_effect(float shimmerMask) {
     return 0.3 + pulse * 0.7;
 }
 
-float calc_web_shell_density(vec3 viewRayNormalized, float shell) {
+vec3 calc_web_shell_ray(vec3 viewRayNormalized, float shell) {
     float shellLayer = shell * StarLayers / float(WEB_SHELLS);
     vec3 shellViewRay = calc_layer_view_ray(viewRayNormalized, shellLayer);
 
     float rotationAngle = TWO_PI * GameTime * 0.054;
-    vec3 rayDir = normalize(rotate_around_axis(shellViewRay, vec3(0.0, 1.0, 0.0), rotationAngle));
-    vec3 webData = sample_cosmic_web(rayDir, 0.5, 0.20, 0.20);
+    return normalize(rotate_around_axis(shellViewRay, vec3(0.0, 1.0, 0.0), rotationAngle));
+}
+
+float calc_web_shell_density(vec3 viewRayNormalized, float shell) {
+    vec3 rayDir = calc_web_shell_ray(viewRayNormalized, shell);
+    float filamentWidth = 0.20 * pow(vIntegrity, 2.0);
+    float clusterWidth = 0.20 * pow(vIntegrity, 2.0);
+    vec4 webData = sample_cosmic_web(rayDir, 0.5, filamentWidth, clusterWidth);
 
     float shimmer = calc_shimmer_effect(webData.z);
     float webMask = max(webData.x, webData.y) * shimmer;
-    float density = min(0.2 + webMask, 1.0);
+
+    float voidBand = mix(filamentWidth, 1.5, pow(vIntegrity, 2.0));
+    float voidMask = 1.0 - smoothstep(voidBand * 0.7, voidBand, webData.w);
+    float voidDensity = 0.2 * voidMask;
+    float density = min(voidDensity + webMask, 1.0);
     return density;
 }
 
@@ -121,6 +142,21 @@ vec3 calc_star_layer_weight(vec3 viewRayNormalized, float webDensity, float laye
     float textureScale = max(1.0, 5.8 - 0.32 * layer) * 0.2;
     vec3 layerWeight = triplanar_blend(Sampler1, rayDir, layer, textureScale);
     return layerWeight * webDensity;
+}
+
+vec3 calc_base_color(vec3 viewRayNormalized) {
+    vec3 baseColor = triplanar_blend(Sampler0, viewRayNormalized, 0.0, 1.0) * vBaseColor.rgb;
+
+    float luma = dot(baseColor, vec3(0.2126, 0.7152, 0.0722)); // sRGB luminance weights
+    vec3 desaturated = mix(vec3(luma), baseColor, smoothstep(0.3, 1.0, vIntegrity));
+
+    vec3 shellViewRay = calc_web_shell_ray(viewRayNormalized, 0.0);
+    vec4 backgroundShellData = sample_cosmic_web(shellViewRay, 0.5, 0.0001, 0.0001);
+    float backgroundBand = mix(0.0001, 1.5, pow(vIntegrity, 2.0));
+    float backgroundMask = 1.0 - smoothstep(backgroundBand * 0.7, backgroundBand, backgroundShellData.w);
+    float dimming = mix(0.05, 1.0, backgroundMask);
+
+    return desaturated * dimming;
 }
 
 void unpackPalette(uvec4 packedColors, out vec4[4] palette) {
@@ -184,7 +220,7 @@ void main() {
         webDensities[i] = calc_web_shell_density(viewRayNormalized, float(i));
     }
 
-    vec3 color = triplanar_blend(Sampler0, viewRayNormalized, 0.0, 1.0) * vBaseColor.rgb;
+    vec3 color = calc_base_color(viewRayNormalized);
     for (int i = 0; i < StarLayers; i++) {
         int webShell = min(i * WEB_SHELLS / StarLayers, WEB_SHELLS - 1);
         float webDensity = webDensities[webShell];

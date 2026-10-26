@@ -11,7 +11,9 @@
     "BaseColor",
     "ParticleSpeeds",
     "Colors",
-    "Anchor"
+    "Anchor",
+    "Integrity",
+    "RenderEffectId"
   ],
   "samplers": [
     { "name": "Sampler0" },

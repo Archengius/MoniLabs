@@ -5,6 +5,8 @@ in vec3 BaseColor;
 in vec4 ParticleSpeeds;
 in uvec4 Colors;
 in vec4 Anchor;
+in float Integrity;
+in float RenderEffectId;
 
 uniform mat4 ModelViewMat;
 uniform mat4 ProjMat;
@@ -15,6 +17,8 @@ flat out uvec4 vColors;
 flat out vec3 vBaseColor;
 flat out vec4 vParticleSpeeds;
 flat out vec4 vAnchor;
+flat out float vIntegrity;
+flat out uint vRenderEffectId;
 
 void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
@@ -24,4 +28,6 @@ void main() {
     vParticleSpeeds = ParticleSpeeds;
     vColors = Colors;
     vAnchor = vec4(IViewRotMat * Anchor.xyz, Anchor.w);
+    vIntegrity = Integrity;
+    vRenderEffectId = uint(RenderEffectId);
 }
