@@ -9,6 +9,7 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.material.PushReaction;
 import net.neganote.monilabs.MoniLabs;
 import net.neganote.monilabs.common.item.PrismaticFocusItem;
 import net.neganote.monilabs.data.models.MoniModels;
@@ -33,7 +34,8 @@ public class MoniBlocks {
                 .block(id, PrismaticActiveBlock::new)
                 .initialProperties(() -> Blocks.IRON_BLOCK)
                 .properties(p -> p.isValidSpawn((state, level, pos, ent) -> false)
-                        .lightLevel((b) -> b.getValue(GTBlockStateProperties.ACTIVE) ? 15 : 0))
+                        .lightLevel((b) -> b.getValue(GTBlockStateProperties.ACTIVE) ? 15 : 0)
+                        .pushReaction(PushReaction.BLOCK))
                 .blockstate(MoniModels.createPrismaticActiveBlockModel(MoniLabs.id(texturePath)))
                 .tag(RecipeTags.MINEABLE_WITH_WRENCH, BlockTags.MINEABLE_WITH_PICKAXE)
                 .lang(name)
@@ -49,7 +51,8 @@ public class MoniBlocks {
                 .block(id, PrismaticActiveBlock::new)
                 .initialProperties(() -> Blocks.BEACON)
                 .properties(p -> p.isValidSpawn((state, level, pos, ent) -> false)
-                        .lightLevel((b) -> b.getValue(GTBlockStateProperties.ACTIVE) ? 15 : 0))
+                        .lightLevel((b) -> b.getValue(GTBlockStateProperties.ACTIVE) ? 15 : 0)
+                        .pushReaction(PushReaction.BLOCK))
                 .blockstate(MoniModels.createPrismaticActiveUpsideDownBeaconModel(MoniLabs.id(texturePath)))
                 .tag(RecipeTags.MINEABLE_WITH_WRENCH, BlockTags.MINEABLE_WITH_PICKAXE)
                 .lang(name)
@@ -68,7 +71,8 @@ public class MoniBlocks {
         return REGISTRATE
                 .block(id, Block::new)
                 .initialProperties(() -> Blocks.IRON_BLOCK)
-                .properties(p -> p.isValidSpawn((state, level, pos, ent) -> false))
+                .properties(p -> p.isValidSpawn((state, level, pos, ent) -> false)
+                        .pushReaction(PushReaction.BLOCK))
                 .blockstate((ctx, prov) -> prov.simpleBlock(ctx.getEntry(),
                         prov.models().cubeAll(ctx.getName(), MoniLabs.id("block/" + texture))))
                 .tag(RecipeTags.MINEABLE_WITH_WRENCH, BlockTags.MINEABLE_WITH_PICKAXE)
@@ -84,7 +88,8 @@ public class MoniBlocks {
                 .block(id, ActiveBlock::new)
                 .initialProperties(() -> Blocks.IRON_BLOCK)
                 .properties(p -> p.isValidSpawn((state, level, pos, ent) -> false)
-                        .lightLevel((b) -> b.getValue(GTBlockStateProperties.ACTIVE) ? 15 : 0))
+                        .lightLevel((b) -> b.getValue(GTBlockStateProperties.ACTIVE) ? 15 : 0)
+                        .pushReaction(PushReaction.BLOCK))
                 .blockstate(MoniModels.createActiveBlockModel(MoniLabs.id("block/" + texture)))
                 .tag(RecipeTags.MINEABLE_WITH_WRENCH, BlockTags.MINEABLE_WITH_PICKAXE)
                 .lang(name)
@@ -98,7 +103,8 @@ public class MoniBlocks {
         return REGISTRATE
                 .block(id, Block::new)
                 .initialProperties(() -> Blocks.BEACON)
-                .properties(p -> p.isValidSpawn((state, level, pos, ent) -> false))
+                .properties(p -> p.isValidSpawn((state, level, pos, ent) -> false)
+                        .pushReaction(PushReaction.BLOCK))
                 .blockstate((ctx, prov) -> prov.simpleBlock(ctx.getEntry(),
                         prov.models()
                                 .withExistingParent(ctx.getName(), MoniLabs.id("block/beacon"))
