@@ -8,9 +8,9 @@ import net.irisshaders.iris.pipeline.programs.ExtendedShader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.blockentity.TheEndPortalRenderer;
 import net.minecraft.server.packs.resources.ResourceProvider;
+import net.neganote.monilabs.client.render.MicroverseRenderHelper;
 
 import com.llamalad7.mixinextras.injector.ModifyReceiver;
-import net.neganote.monilabs.client.render.MicroverseRenderHelper;
 import org.lwjgl.opengl.GL31;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

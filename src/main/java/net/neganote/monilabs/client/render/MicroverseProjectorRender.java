@@ -84,13 +84,15 @@ public class MicroverseProjectorRender extends
             case CORRUPTED /* DEGENERATE */ -> 0x150A14;
             default -> 0x06191C;
         };
-        int renderEffect = switch(microverse) {
+        int renderEffect = switch (microverse) {
             case NONE, HOSTILE, NORMAL -> MicroverseRenderHelper.RENDER_EFFECT_NONE;
             case SHATTERED -> MicroverseRenderHelper.RENDER_EFFECT_SHATTER;
             case CORRUPTED -> MicroverseRenderHelper.RENDER_EFFECT_CORRUPTION;
         };
-        float integrity = projector.getMicroverseIntegrity() / (float) MicroverseProjectorMachine.MICROVERSE_MAX_INTEGRITY;
-        renderProjectInterior(stack, buffer, upwards, front, left, tier, baseColor, colors, particleSpeeds, integrity, renderEffect);
+        float integrity = projector.getMicroverseIntegrity() /
+                (float) MicroverseProjectorMachine.MICROVERSE_MAX_INTEGRITY;
+        renderProjectInterior(stack, buffer, upwards, front, left, tier, baseColor, colors, particleSpeeds, integrity,
+                renderEffect);
     }
 
     private Vector4f getSuperchargedSpeeds(float multiplier) {

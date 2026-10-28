@@ -12,8 +12,6 @@ import net.minecraft.client.renderer.blockentity.TheEndPortalRenderer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-import net.minecraft.resources.ResourceLocation;
-import net.neganote.monilabs.MoniLabs;
 
 @SideOnly(Side.CLIENT)
 public class MoniRenderTypes {
