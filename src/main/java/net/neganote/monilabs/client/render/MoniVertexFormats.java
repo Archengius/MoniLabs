@@ -22,7 +22,7 @@ public class MoniVertexFormats {
                             new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.UV, 4))
                     .put("Integrity",
                             new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.UV, 1))
-                    .put("RenderEffectId",
+                    .put("RenderEffect",
                             new VertexFormatElement(0, VertexFormatElement.Type.UBYTE, VertexFormatElement.Usage.GENERIC, 1))
                     .build());
 
@@ -53,7 +53,7 @@ public class MoniVertexFormats {
                             new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.UV, 4))
                     .put("Integrity",
                             new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.UV, 1))
-                    .put("RenderEffectId",
+                    .put("RenderEffect",
                             new VertexFormatElement(0, VertexFormatElement.Type.UBYTE, VertexFormatElement.Usage.GENERIC, 1))
                     .build());
 }
