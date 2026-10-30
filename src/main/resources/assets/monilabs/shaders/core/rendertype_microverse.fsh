@@ -47,6 +47,13 @@ float hash01(uint v) {
     return float(pcg_hash(v)) / 4294967295.0;
 }
 
+// Returns the hash in [0;1] range
+vec3 hash01_vec3(vec3 p) {
+    uvec3 q = uvec3(ivec3(p));
+    uint h = pcg_hash(q.x ^ pcg_hash(q.y ^ pcg_hash(q.z)));
+    return vec3(hash01(h), hash01(h ^ 0x9E3779B9u), hash01(h ^ 0x85EBCA6Bu));
+}
+
 vec4 sample_cosmic_web(vec3 viewRay, float webScale, float filamentWidth, float clusterSize) {
     vec3 sample1 = texture(Sampler2, vec2(3.1574, 4.8511) + viewRay.yz * webScale).rgb;
     vec3 sample2 = texture(Sampler2, vec2(7.9221, 6.3466) + viewRay.xz * webScale).rgb;
@@ -113,16 +120,29 @@ float calc_shimmer_effect(float shimmerMask) {
     return 0.3 + pulse * 0.7;
 }
 
-vec3 calc_web_shell_ray(vec3 viewRayNormalized, float shell) {
-    float shellLayer = shell * StarLayers / float(WEB_SHELLS);
-    vec3 shellViewRay = calc_layer_view_ray(viewRayNormalized, shellLayer);
-
-    float rotationAngle = TWO_PI * GameTime * 0.054;
-    return rotate_around_axis(shellViewRay, vec3(0.0, 1.0, 0.0), rotationAngle);
+vec3 shift_view_ray(vec4 shard, float shiftScale) {
+    vec3 viewRayNormalized = normalize(vViewRay);
+    float shattered = step(0.1, float(vRenderEffect & RENDER_EFFECT_SHATTERED));
+    return normalize(viewRayNormalized + shard.xyz * shiftScale * shattered);
 }
 
-float calc_web_shell_density(float shell) {
-    vec3 rayDir = calc_web_shell_ray(normalize(vViewRay), shell);
+vec3 refract_layer_ray(vec3 layerViewRay, vec4 shard, float layer) {
+    float depthScale = log2((float(StarLayers) - layer + 2.0) / 2.0);
+    float shattered = step(0.1, float(vRenderEffect & RENDER_EFFECT_SHATTERED));
+    vec3 tangentShift = shard.xyz - layerViewRay * dot(shard.xyz, layerViewRay);
+    return normalize(layerViewRay + tangentShift * depthScale * shattered);
+}
+
+vec3 calc_web_shell_ray(vec4 shard, float layer) {
+    vec3 shellViewRay = calc_layer_view_ray(normalize(vViewRay), layer);
+    vec3 refractedRay = refract_layer_ray(shellViewRay, shard, layer);
+    float rotationAngle = TWO_PI * GameTime * 0.054;
+    return rotate_around_axis(refractedRay, vec3(0.0, 1.0, 0.0), rotationAngle);
+}
+
+float calc_web_shell_density(vec4 shard, float shell) {
+    float shellLayer = shell * StarLayers / float(WEB_SHELLS);
+    vec3 rayDir = calc_web_shell_ray(shard, shellLayer);
     float filamentWidth = 0.20 * pow(vIntegrity, 2.0);
     float clusterWidth = 0.20 * pow(vIntegrity, 2.0);
     vec4 webData = sample_cosmic_web(rayDir, 0.5, filamentWidth, clusterWidth);
@@ -137,20 +157,89 @@ float calc_web_shell_density(float shell) {
     return density;
 }
 
-vec3 calc_star_layer_weight(float webDensity, float layer, float speedModifier) {
+// @ENDESGA
+// splat-field forked from https://www.shadertoy.com/view/clGyWm
+// The MIT License
+// Copyright (c) 2023 Inigo Quilez
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+// https://www.youtube.com/c/InigoQuilez
+// https://iquilezles.org
+// An adapted version of shard noise
+float shard_noise(vec3 point, float sharpness) {
+    vec3 cell = floor(point);
+    vec3 cellLocal = fract(point);
+
+    float valueSum = 0.0;
+    float weightSum = 0.0;
+    for (int z = -1; z <= 1; z++) {
+        for (int y = -1; y <= 1; y++) {
+            for (int x = -1; x <= 1; x++) {
+                vec3 cellOffset = vec3(x, y, z);
+                vec3 neighborCell = cell + cellOffset;
+                vec3 delta = cellLocal - (cellOffset + hash01_vec3(neighborCell));
+
+                float weight = exp2(-TWO_PI * dot(delta, delta));
+                // tanh deconstruction and optimization by @Xor
+                float slope = sharpness * dot(delta, hash01_vec3(neighborCell + vec3(11.0, 31.0, 47.0)) - 0.5);
+                // Changed by @WithersChat from slope * inversesqrt(1.0 + slope * slope) for sharper lines
+                float denominator = 1.0 + slope;
+                denominator = denominator < 0.0 ? min(denominator, -0.001) : max(denominator, 0.001);
+                valueSum += weight * slope / denominator;
+                weightSum += weight;
+            }
+        }
+    }
+    return (valueSum / weightSum) * 0.5 + 0.5;
+}
+
+vec3 shard_offset(vec3 point, vec3 axis) {
+    vec3 na = vec3(
+        shard_noise(point, 4.0),
+        shard_noise(point + vec3(50.0), 4.0),
+        shard_noise(point + vec3(-50.0, 25.0, 75.0), 4.0)
+    );
+    na = clamp(floor(na * 4.0) / 4.0 - 0.5, -0.5, 0.5) * 0.3;
+    return na - axis * dot(na, axis);
+}
+
+float shard_mask(vec3 point) {
+    float nb = shard_noise(point + vec3(100.0), 4.0);
+    nb = nb > 1.0 ? sqrt(nb) : nb;
+    nb = clamp((nb + 0.5) / 3.0, 0.0, 1.0);
+    return nb;
+}
+
+vec4 calc_shard_data() {
+    // Use the point on the projector face as an input to shard noise,
+    // this way it does not change with camera movement. We do not have a real normal here on non-iris path,
+    // so use view ray derivatives to approximate it (a better path ahead would be to add normal to the vertex format)
+    vec3 facePoint = (vViewRay - vAnchor.xyz) / vAnchor.w;
+    vec3 faceNormal = normalize(cross(dFdx(vViewRay), dFdy(vViewRay)));
+    float time = GameTime * 120.0;
+    vec3 offsetPoint = facePoint * 0.6 + faceNormal * time * 0.125;
+    vec3 maskPoint = facePoint * 1.8 + faceNormal * time * 0.2;
+    return vec4(shard_offset(offsetPoint, normalize(vViewRay)), shard_mask(maskPoint));
+}
+
+float calc_shard_shading(vec4 shard) {
+    float shattered = step(0.1, float(vRenderEffect & RENDER_EFFECT_SHATTERED));
+    return mix(1.0, shard.w, shattered);
+}
+
+vec3 calc_star_layer_weight(float density, vec4 shard, float layer, float speedModifier) {
     vec3 baseAxis = fibonacci_sphere_point(layer - 1.0, float(StarLayers));
     vec3 rotationAxis = rotate_around_axis(baseAxis, vec3(0.0, 1.0, 0.0), TWO_PI * GameTime * 0.012 * layer);
     float rotationAngle = 5.7491 * layer + TWO_PI * GameTime * 0.097 * (3.0 + layer) / (4.5 - layer / 4.0) * speedModifier;
-    vec3 layerViewRay = calc_layer_view_ray(normalize(vViewRay), layer);
+    vec3 layerViewRay = refract_layer_ray(calc_layer_view_ray(normalize(vViewRay), layer), shard, layer);
     vec3 rotatedViewRay = normalize(rotate_around_axis(layerViewRay, rotationAxis, rotationAngle));
 
     float textureScale = max(1.0, 5.8 - 0.32 * layer) * 0.2;
     vec3 layerWeight = triplanar_blend(Sampler1, rotatedViewRay, layer, textureScale);
-    return layerWeight * webDensity;
+    return layerWeight * density;
 }
 
-vec3 calc_base_color() {
-    vec3 viewRayNormalized = normalize(vViewRay);
+vec3 calc_base_color(vec4 shard) {
+    vec3 viewRayNormalized = shift_view_ray(shard, 1.0);
     vec3 baseColor = triplanar_blend(Sampler0, viewRayNormalized, 0.0, 1.0) * vBaseColor.rgb;
 
     float luma = dot(baseColor, vec3(0.2126, 0.7152, 0.0722)); // sRGB luminance weights
@@ -214,16 +303,17 @@ void main() {
     unpackPalette(vColors, palette);
     expandPalette(palette, expandedPalette);
 
+    vec4 shard = calc_shard_data();
     float webDensities[WEB_SHELLS];
     for (int i = 0; i < WEB_SHELLS; i++) {
-        webDensities[i] = calc_web_shell_density(float(i));
+        webDensities[i] = calc_web_shell_density(shard, float(i));
     }
 
-    vec3 color = calc_base_color();
+    vec3 color = calc_base_color(shard);
     for (int i = 0; i < StarLayers; i++) {
         int webShell = min(i * WEB_SHELLS / StarLayers, WEB_SHELLS - 1);
-        float webDensity = webDensities[webShell];
-        vec3 layerWeight = calc_star_layer_weight(webDensity, float(i + 1), speeds[i / 4]);
+        float density = webDensities[webShell];
+        vec3 layerWeight = calc_star_layer_weight(density, shard, float(i + 1), speeds[i / 4]);
         bool isStar = length(layerWeight) > 0.1;
         bool isBlackish = length(expandedPalette[i].rgb) < 0.1;
         if (isBlackish && isStar) {
@@ -232,5 +322,6 @@ void main() {
             color += layerWeight * expandedPalette[i].rgb;
         }
     }
-    fragColor = vec4(color, 1.0);
+    color = clamp(color, 0.0, 1.0);
+    fragColor = vec4(color * calc_shard_shading(shard), 1.0);
 }
