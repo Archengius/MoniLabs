@@ -86,8 +86,8 @@ public class MicroverseProjectorRender extends
         };
         int renderEffect = switch (microverse) {
             case NONE, HOSTILE, NORMAL -> MicroverseRenderHelper.RENDER_EFFECT_NONE;
-            case SHATTERED -> MicroverseRenderHelper.RENDER_EFFECT_SHATTER;
-            case CORRUPTED -> MicroverseRenderHelper.RENDER_EFFECT_CORRUPTION;
+            case SHATTERED -> MicroverseRenderHelper.RENDER_EFFECT_SHATTERED;
+            case CORRUPTED -> MicroverseRenderHelper.RENDER_EFFECT_CORRUPTED;
         };
         float integrity = projector.getMicroverseIntegrity() /
                 (float) MicroverseProjectorMachine.MICROVERSE_MAX_INTEGRITY;

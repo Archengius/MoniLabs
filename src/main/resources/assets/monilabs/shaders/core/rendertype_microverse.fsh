@@ -17,8 +17,8 @@ flat in uint vRenderEffect;
 
 const int WEB_SHELLS = 3;
 const float TWO_PI = 6.28318530718;
-const uint RENDER_EFFECT_SHATTER = 1u;
-const uint RENDER_EFFECT_CORRUPTION = 2u;
+const uint RENDER_EFFECT_SHATTERED = 1u;
+const uint RENDER_EFFECT_CORRUPTED = 2u;
 
 vec3 rgb2hsv(vec3 c) {
     vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -45,36 +45,6 @@ uint pcg_hash(uint v)  {
 // Returns the hash in [0;1] range
 float hash01(uint v) {
     return float(pcg_hash(v)) / 4294967295.0;
-}
-
-vec3 random_unit_vector(uint h) {
-    float z = hash01(h) * 2.0 - 1.0;
-    float phi = hash01(h ^ 0x9E3779B9u) * TWO_PI;
-    float r = sqrt(1.0 - z * z);
-    return vec3(r * cos(phi), z, r * sin(phi));
-}
-
-const float GLITCH_INTERVAL_TICKS = 5.0;
-const float GLITCH_DURATION_TICKS = 2.0;
-
-vec3 glitch_event_id_phase(float chance) {
-    float t = GameTime * 24000.0;
-    float cell = floor(t / GLITCH_INTERVAL_TICKS);
-    uint h = pcg_hash(uint(cell) ^ 0x7F4A7C15u);
-
-    float start = hash01(h) * (GLITCH_INTERVAL_TICKS - GLITCH_DURATION_TICKS);
-    float local = t - cell * GLITCH_INTERVAL_TICKS;
-    float active = step(start, local) * step(local, start + GLITCH_DURATION_TICKS);
-    float phase = (local - start) / GLITCH_DURATION_TICKS;
-
-    float happens = step(1.0 - chance, hash01(h ^ 0x9E3779B9u));
-    return vec3(active * happens, cell, phase);
-}
-
-vec3 calc_glitch_mag_id_phase(float strength, float chance) {
-    vec3 eventIdPhase = glitch_event_id_phase(chance);
-    float magnitudeScale = mix(0.85, 1.0, hash01(uint(eventIdPhase.y) ^ 0x9E3779B9u));
-    return vec3(magnitudeScale * strength * eventIdPhase.x, eventIdPhase.y, eventIdPhase.z);
 }
 
 vec4 sample_cosmic_web(vec3 viewRay, float webScale, float filamentWidth, float clusterSize) {
@@ -151,12 +121,8 @@ vec3 calc_web_shell_ray(vec3 viewRayNormalized, float shell) {
     return rotate_around_axis(shellViewRay, vec3(0.0, 1.0, 0.0), rotationAngle);
 }
 
-float calc_web_shell_density(float shell, vec3 glitchMagIdPhase, vec3 rayDeltaX, vec3 rayDeltaY) {
-    uint shellHash = pcg_hash(uint(glitchMagIdPhase.y) * 967327u + uint(shell));
-    vec2 shift = normalize(vec2(hash01(shellHash), hash01(shellHash ^ 0x9E3779B9u)) * 2.0 - 1.0) * 30.0 * glitchMagIdPhase.x;
-    vec3 shiftedViewRay = normalize(normalize(vViewRay) + rayDeltaX * shift.x + rayDeltaY * shift.y);
-
-    vec3 rayDir = calc_web_shell_ray(shiftedViewRay, shell);
+float calc_web_shell_density(float shell) {
+    vec3 rayDir = calc_web_shell_ray(normalize(vViewRay), shell);
     float filamentWidth = 0.20 * pow(vIntegrity, 2.0);
     float clusterWidth = 0.20 * pow(vIntegrity, 2.0);
     vec4 webData = sample_cosmic_web(rayDir, 0.5, filamentWidth, clusterWidth);
@@ -171,16 +137,11 @@ float calc_web_shell_density(float shell, vec3 glitchMagIdPhase, vec3 rayDeltaX,
     return density;
 }
 
-vec3 calc_star_layer_weight(float webDensity, float shell, float layer, float speedModifier, vec3 glitchMagIdPhase, vec3 rayDeltaX, vec3 rayDeltaY) {
+vec3 calc_star_layer_weight(float webDensity, float layer, float speedModifier) {
     vec3 baseAxis = fibonacci_sphere_point(layer - 1.0, float(StarLayers));
     vec3 rotationAxis = rotate_around_axis(baseAxis, vec3(0.0, 1.0, 0.0), TWO_PI * GameTime * 0.012 * layer);
     float rotationAngle = 5.7491 * layer + TWO_PI * GameTime * 0.097 * (3.0 + layer) / (4.5 - layer / 4.0) * speedModifier;
-
-    uint shellHash = pcg_hash(uint(glitchMagIdPhase.y) * 967327u + uint(shell));
-    vec2 shift = normalize(vec2(hash01(shellHash), hash01(shellHash ^ 0x9E3779B9u)) * 2.0 - 1.0) * 30.0 * glitchMagIdPhase.x;
-    vec3 shiftedViewRay = normalize(normalize(vViewRay) - rayDeltaX * shift.x - rayDeltaY * shift.y);
-
-    vec3 layerViewRay = calc_layer_view_ray(shiftedViewRay, layer);
+    vec3 layerViewRay = calc_layer_view_ray(normalize(vViewRay), layer);
     vec3 rotatedViewRay = normalize(rotate_around_axis(layerViewRay, rotationAxis, rotationAngle));
 
     float textureScale = max(1.0, 5.8 - 0.32 * layer) * 0.2;
@@ -247,36 +208,22 @@ void expandPalette(vec4[4] base4, out vec4[16] palette) {
 out vec4 fragColor;
 
 void main() {
-    vec3 normalizedViewRay = normalize(vViewRay);
-    vec3 rayDeltaX = dFdx(normalizedViewRay);
-    vec3 rayDeltaY = dFdy(normalizedViewRay);
-
     float speeds[4] = float[](vParticleSpeeds.x, vParticleSpeeds.y, vParticleSpeeds.z, vParticleSpeeds.w);
     vec4 palette[4];
     vec4 expandedPalette[16];
     unpackPalette(vColors, palette);
     expandPalette(palette, expandedPalette);
 
-    float smallGlitchEffect = step(1.0, float(vRenderEffect & RENDER_EFFECT_CORRUPTION));
-    float smallGlitchStrength = vIntegrity * smallGlitchEffect;
-
-    float bigGlitchEffect = step(1.0, float(vRenderEffect & RENDER_EFFECT_SHATTER));
-    float bigGlitchStrength = mix(0.5, 1.0, vIntegrity) * bigGlitchEffect;
-
-    float glitchStrength = min(smallGlitchStrength + bigGlitchStrength, 1.0);
-    float glitchChance = min(0.3 * smallGlitchEffect + 0.8 * bigGlitchEffect, 1.0);
-    vec3 glitchMagIdPhase = calc_glitch_mag_id_phase(glitchStrength, glitchChance);
-
     float webDensities[WEB_SHELLS];
     for (int i = 0; i < WEB_SHELLS; i++) {
-        webDensities[i] = calc_web_shell_density(float(i), glitchMagIdPhase, rayDeltaX, rayDeltaY);
+        webDensities[i] = calc_web_shell_density(float(i));
     }
 
     vec3 color = calc_base_color();
     for (int i = 0; i < StarLayers; i++) {
         int webShell = min(i * WEB_SHELLS / StarLayers, WEB_SHELLS - 1);
         float webDensity = webDensities[webShell];
-        vec3 layerWeight = calc_star_layer_weight(webDensity, float(webShell), float(i + 1), speeds[i / 4], glitchMagIdPhase, rayDeltaX, rayDeltaY);
+        vec3 layerWeight = calc_star_layer_weight(webDensity, float(i + 1), speeds[i / 4]);
         bool isStar = length(layerWeight) > 0.1;
         bool isBlackish = length(expandedPalette[i].rgb) < 0.1;
         if (isBlackish && isStar) {

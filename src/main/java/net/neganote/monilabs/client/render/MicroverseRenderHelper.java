@@ -35,8 +35,8 @@ public class MicroverseRenderHelper {
             MoniLabs.MOD_ID, "textures/renderer/cosmic_web.png");
 
     public static final int RENDER_EFFECT_NONE = 0;
-    public static final int RENDER_EFFECT_SHATTER = 1;
-    public static final int RENDER_EFFECT_CORRUPTION = 2;
+    public static final int RENDER_EFFECT_SHATTERED = 1;
+    public static final int RENDER_EFFECT_CORRUPTED = 2;
 
     public static void renderMicroverse(PoseStack stack, MultiBufferSource buffer, Direction upwards, Direction front,
                                         Direction left, int offsetFront, int offsetUp,
